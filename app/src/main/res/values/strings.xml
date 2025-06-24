@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">OCR Scanner</string>
+
+    <!-- HomeScreen -->
+    <string name="home_title">Scan &amp; Save</string>
+    <string name="home_subtitle">A simple scanner for Dad</string>
+    <string name="home_start_scanning">Tap to Start Scanning</string>
+    <string name="home_made_by">Made by Omar Eddaoudi</string>
+
+    <!-- CameraScreen -->
+    <string name="camera_title">Point at Text</string>
+    <string name="camera_capture_button_desc">Capture Image</string>
+    <string name="camera_processing_status">Reading the text...</string>
+    <string name="camera_permission_required">Camera Permission Needed</string>
+    <string name="camera_permission_description">The app needs camera access to scan documents.</string>
+    <string name="camera_grant_permission">Grant Permission</string>
+
+    <!-- ResultScreen -->
+    <string name="result_title">Is this text correct?</string>
+    <string name="result_save_to_drive">✔ Yes, Save to Google Drive</string>
+    <string name="result_try_again">✘ No, Try Again</string>
+    <string name="result_extracted_text">Extracted Text:</string>
+    <string name="result_no_text_detected">Could not read any text.</string>
+    <string name="result_no_text_advice">Please try again with a clearer picture.</string>
+    <string name="result_save_in_progress">Saving to Drive...</string>
+    <string name="result_share_button">✔ Share / Save</string>
+</resources>

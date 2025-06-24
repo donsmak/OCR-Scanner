@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">الماسح الضوئي للنصوص</string>
+
+    <!-- HomeScreen -->
+    <string name="home_title">مسح وحفظ</string>
+    <string name="home_subtitle">ماسح ضوئي بسيط للوالد</string>
+    <string name="home_start_scanning">انقر لبدء المسح</string>
+    <string name="home_made_by">من قبل عمر الداودي</string>
+
+    <!-- CameraScreen -->
+    <string name="camera_title">وجّه الكاميرا نحو النص</string>
+    <string name="camera_capture_button_desc">التقاط صورة</string>
+    <string name="camera_processing_status">جاري قراءة النص...</string>
+    <string name="camera_permission_required">إذن الكاميرا مطلوب</string>
+    <string name="camera_permission_description">يحتاج التطبيق إلى الوصول للكاميرا لمسح المستندات.</string>
+    <string name="camera_grant_permission">منح الإذن</string>
+
+    <!-- ResultScreen -->
+    <string name="result_title">هل هذا النص صحيح؟</string>
+    <string name="result_share_button">✔ نعم، مشاركة / حفظ</string>
+    <string name="result_try_again">✘ لا، حاول مرة أخرى</string>
+    <string name="result_extracted_text">النص المستخرج:</string>
+    <string name="result_no_text_detected">تعذر قراءة أي نص.</string>
+    <string name="result_no_text_advice">يرجى المحاولة مرة أخرى بصورة أوضح.</string>
+    <string name="result_save_in_progress">جاري الحفظ...</string>
+</resources>
