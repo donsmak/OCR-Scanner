@@ -3,6 +3,7 @@ package com.donsmak.ocrscanner.utils
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.io.File
 import java.io.FileOutputStream
@@ -22,10 +23,16 @@ object FileUtils {
             // Create a new document in memory
             val document = XWPFDocument()
 
-            // Add the text content to a paragraph
-            val paragraph = document.createParagraph()
+            // Preserve line-breaks & mark the paragraph RTL so Arabic renders correctly
+            val paragraph = document.createParagraph().apply {
+                alignment = ParagraphAlignment.RIGHT
+            }
             val run = paragraph.createRun()
-            run.setText(text)
+
+            text.split("\n").forEachIndexed { i, line ->
+                run.setText(line)
+                if (i < text.lines().size - 1) run.addBreak()
+            }
 
             // Define the directory and filename
             // This creates a file in a "docs" subdirectory of our app's private cache
@@ -37,7 +44,7 @@ object FileUtils {
                 SimpleDateFormat("dd-MM-yyyy_HH-mm-ss", Locale.getDefault()).format(Date())
             val file = File(docsDir, "Scan_${timeStamp}.docx")
 
-            // Write the document tot he file
+            // Write the document to the file
             FileOutputStream(file).use { fileOutputStream ->
                 document.write(fileOutputStream)
             }

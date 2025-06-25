@@ -13,6 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+!local.properties.template
 # Keystore files
 *.keystore
 keystore.properties
+
+# Google Cloud Service Account Key
+app/src/main/assets/service-account-key.json

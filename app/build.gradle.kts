@@ -6,6 +6,9 @@ plugins {
 
 import java.util.Properties
 
+// Add the BOM alias
+val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
+
 android {
     namespace = "com.donsmak.ocrscanner"
     compileSdk = 35
@@ -44,9 +47,18 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Expose the API key as a BuildConfig field
+        // Expose the API key and new Document AI fields
         val apiKey = localProperties.getProperty("google.api.key", "").removeSurrounding("\"")
         buildConfigField("String", "GOOGLE_API_KEY", "\"$apiKey\"")
+
+        val docaiProjectId = localProperties.getProperty("docai.project.id", "").removeSurrounding("\"")
+        buildConfigField("String", "DOCAI_PROJECT_ID", "\"$docaiProjectId\"")
+
+        val docaiLocation = localProperties.getProperty("docai.location", "").removeSurrounding("\"")
+        buildConfigField("String", "DOCAI_LOCATION", "\"$docaiLocation\"")
+
+        val docaiProcessorId = localProperties.getProperty("docai.processor.id", "").removeSurrounding("\"")
+        buildConfigField("String", "DOCAI_PROCESSOR_ID", "\"$docaiProcessorId\"")
     }
 
     buildTypes {
@@ -96,43 +108,39 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    // ---- AndroidX & Compose ----
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+    implementation("androidx.activity:activity-compose:1.8.0")
+
+    // Compose BOM so that all Compose artifacts share the same version
+    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
 
     implementation("androidx.navigation:navigation-compose:2.7.5")
 
+    // ---- Camera & Permissions ----
     implementation("androidx.camera:camera-core:1.3.1")
     implementation("androidx.camera:camera-camera2:1.3.1")
     implementation("androidx.camera:camera-lifecycle:1.3.1")
     implementation("androidx.camera:camera-view:1.3.1")
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
-    // Google Cloud Vision API (only this for OCR)
-    implementation("com.google.cloud:google-cloud-vision:3.20.0") {
-        exclude(group = "com.google.guava", module = "listenablefuture")
-        exclude(group = "com.google.guava", module = "guava")
-        exclude(group = "org.apache.httpcomponents", module = "httpclient")
-        exclude(group = "org.apache.httpcomponents", module = "httpcore")
-    }
-    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0") {
-        exclude(group = "com.google.guava", module = "guava")
-        exclude(group = "org.apache.httpcomponents", module = "httpclient")
-        exclude(group = "org.apache.httpcomponents", module = "httpcore")
-    }
+    // ---- Image Cropping & Gallery ----
+    implementation("com.github.yalantis:ucrop:2.2.8")
 
-    implementation("com.google.guava:guava:32.1.3-android")
+    // ---- HTTP networking for Document AI REST API ----
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.google.code.gson:gson:2.11.0")
+
+    // ---- Google Cloud Authentication ----
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
 
     implementation("androidx.exifinterface:exifinterface:1.3.6")
-
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
@@ -145,20 +153,14 @@ dependencies {
         exclude(group = "org.apache.logging.log4j", module = "log4j-api")
     }
 
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
-}
+    // ---- Testing libs ----
+    testImplementation("junit:junit:4.13.2")
 
-configurations.all {
-    resolutionStrategy {
-        force("com.google.guava:guava:32.1.3-android")
-        exclude(group = "com.google.guava", module = "listenablefuture")
-        exclude(group = "org.apache.httpcomponents", module = "httpclient")
-        exclude(group = "org.apache.httpcomponents", module = "httpcore")
-    }
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

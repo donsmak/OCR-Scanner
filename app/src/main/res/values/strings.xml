@@ -3,7 +3,7 @@
 
     <!-- HomeScreen -->
     <string name="home_title">Scan &amp; Save</string>
-    <string name="home_subtitle">A simple scanner for Dad</string>
+    <string name="home_subtitle">A simple scanner for your documents</string>
     <string name="home_start_scanning">Tap to Start Scanning</string>
     <string name="home_made_by">Made by Omar Eddaoudi</string>
 
@@ -14,6 +14,16 @@
     <string name="camera_permission_required">Camera Permission Needed</string>
     <string name="camera_permission_description">The app needs camera access to scan documents.</string>
     <string name="camera_grant_permission">Grant Permission</string>
+    <string name="camera_image_source">Image Source</string>
+    <string name="camera_select_source_title">Select Image Source</string>
+    <string name="camera_select_source_desc">Choose how you want to get the image for OCR scanning.</string>
+    <string name="camera_source_camera">Camera</string>
+    <string name="camera_source_gallery">Gallery</string>
+    <string name="camera_choose_image">Choose Image</string>
+    <string name="camera_select_from_gallery">Select Image from Gallery</string>
+    <string name="camera_processing_options">Processing Options</string>
+    <string name="camera_enhance_image">Enhance Image for OCR</string>
+    <string name="camera_enable_preprocessing">Enable image preprocessing (recommended)</string>
 
     <!-- ResultScreen -->
     <string name="result_title">Is this text correct?</string>

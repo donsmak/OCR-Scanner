@@ -15,6 +15,16 @@
     <string name="camera_permission_required">إذن الكاميرا مطلوب</string>
     <string name="camera_permission_description">يحتاج التطبيق إلى الوصول للكاميرا لمسح المستندات.</string>
     <string name="camera_grant_permission">منح الإذن</string>
+    <string name="camera_image_source">مصدر الصورة</string>
+    <string name="camera_select_source_title">اختر مصدر الصورة</string>
+    <string name="camera_select_source_desc">اختر كيف تريد الحصول على الصورة لمسح النص.</string>
+    <string name="camera_source_camera">الكاميرا</string>
+    <string name="camera_source_gallery">المعرض</string>
+    <string name="camera_choose_image">اختر صورة</string>
+    <string name="camera_select_from_gallery">اختر صورة من المعرض</string>
+    <string name="camera_processing_options">خيارات المعالجة</string>
+    <string name="camera_enhance_image">تحسين الصورة لقراءة النص</string>
+    <string name="camera_enable_preprocessing">تفعيل معالجة الصورة (مُستحسن)</string>
 
     <!-- ResultScreen -->
     <string name="result_title">هل هذا النص صحيح؟</string>
@@ -24,4 +34,5 @@
     <string name="result_no_text_detected">تعذر قراءة أي نص.</string>
     <string name="result_no_text_advice">يرجى المحاولة مرة أخرى بصورة أوضح.</string>
     <string name="result_save_in_progress">جاري الحفظ...</string>
+    <string name="result_save_to_drive">✔ نعم، حفظ في Google Drive</string>
 </resources>

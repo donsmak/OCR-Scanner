@@ -1,262 +1,134 @@
 package com.donsmak.ocrscanner.utils
 
+import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
 import android.util.Base64
 import android.util.Log
 import com.donsmak.ocrscanner.BuildConfig
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.ByteArrayOutputStream
-import java.io.IOException
-import kotlin.math.min
+import java.io.InputStream
 
-data class OcrResult(
-        val text: String,
-        val confidence: Float,
-        val method: String,
-        val language: String,
-        val processingTime: Long,
-        val wordCount: Int,
-        val hasArabic: Boolean,
-        val hasLatin: Boolean
-)
+class OcrEngine(private val context: Context) {
 
-class OcrEngine {
-    companion object {
-        private const val TAG = "OcrEngine"
-    }
+    private val client by lazy { OkHttpClient.Builder().build() }
+    private val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
-    private val httpClient = OkHttpClient.Builder()
-                    .addInterceptor { chain ->
-            val request = chain.request().newBuilder()
-                                        .addHeader("Content-Type", "application/json")
-                                        .build()
-                        chain.proceed(request)
-                    }
-                    .build()
+    suspend fun process(bitmap: Bitmap, enablePreprocessing: Boolean = true): OcrResult = withContext(Dispatchers.IO) {
+        try {
+            /* 1️⃣ Get access token */
+            val accessToken = getAccessToken()
 
-    private val cloudVisionApiKey = BuildConfig.GOOGLE_API_KEY
-
-    suspend fun extractText(
-            bitmap: Bitmap,
-            enhanceImage: Boolean = true
-    ): OcrResult {
-        val startTime = System.currentTimeMillis()
-
-        if (cloudVisionApiKey.isEmpty()) {
-            return OcrResult(
-                text = "Error: Google Cloud Vision API key not configured",
-                confidence = 0f,
-                method = "Error - No API Key",
-                language = "Error",
-                processingTime = System.currentTimeMillis() - startTime,
-                wordCount = 0,
-                hasArabic = false,
-                hasLatin = false
-            )
-        }
-
-        val processedBitmap = if (enhanceImage) {
-                    enhanceImageForOcr(bitmap)
-                } else {
+            /* 2️⃣ Optimize image for OCR accuracy */
+            val optimizedBitmap = if (enablePreprocessing) {
+                Log.d("OcrEngine", "Applying image preprocessing for optimal OCR")
+                try {
+                    ImageProcessor.optimizeForOCR(bitmap)
+                } catch (e: Exception) {
+                    Log.w("OcrEngine", "Image preprocessing failed, using original bitmap", e)
                     bitmap
                 }
+            } else {
+                bitmap
+            }
 
-        return extractWithCloudVision(processedBitmap, startTime)
-    }
+            /* 3️⃣ encode the image in highest quality */
+            val stream = ByteArrayOutputStream()
+            val compressionSettings = ImageProcessor.getOptimalCompressionSettings()
 
-    private suspend fun extractWithCloudVision(bitmap: Bitmap, startTime: Long): OcrResult {
-        return withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "Calling Google Cloud Vision API...")
-                val base64Image = bitmapToBase64(bitmap)
-                val response = callCloudVisionAPI(base64Image)
-                val jsonResponse = JSONObject(response)
+            optimizedBitmap.compress(compressionSettings.format, compressionSettings.quality, stream)
+            val base64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
 
-                Log.d(TAG, "Cloud Vision response: $response")
+            val mimeType = when (compressionSettings.format) {
+                Bitmap.CompressFormat.PNG -> "image/png"
+                Bitmap.CompressFormat.JPEG -> "image/jpeg"
+                else -> "image/png"
+            }
 
-                val annotations = jsonResponse
-                                .optJSONArray("responses")
-                                ?.optJSONObject(0)
-                                ?.optJSONArray("textAnnotations")
+            Log.d("OcrEngine", "Image size: ${stream.size()} bytes, format: $mimeType")
 
-                if (annotations != null && annotations.length() > 0) {
-                    val fullText = annotations.getJSONObject(0).getString("description")
-                    val confidence = calculateConfidenceFromCloud(annotations)
-
-                    Log.d(TAG, "Extracted text: $fullText")
-                    Log.d(TAG, "Confidence: $confidence")
-
-                    OcrResult(
-                            text = fullText,
-                            confidence = confidence,
-                            method = "Google Cloud Vision",
-                            language = detectLanguage(fullText),
-                            processingTime = System.currentTimeMillis() - startTime,
-                            wordCount = fullText.split("\\s+".toRegex()).size,
-                            hasArabic = containsArabic(fullText),
-                            hasLatin = containsLatin(fullText)
-                    )
-                } else {
-                    Log.w(TAG, "No text found in image")
-                    OcrResult(
-                        text = "No text detected in image",
-                            confidence = 0f,
-                        method = "Google Cloud Vision (No Text)",
-                            language = "Unknown",
-                            processingTime = System.currentTimeMillis() - startTime,
-                            wordCount = 0,
-                            hasArabic = false,
-                            hasLatin = false
-                    )
+            /* 4️⃣ build the JSON request body */
+            val jsonBody = """
+                {
+                  "rawDocument": {
+                    "content": "$base64",
+                    "mimeType": "$mimeType"
+                  }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Cloud Vision API failed", e)
-            OcrResult(
-                    text = "Error: ${e.message}",
-                    confidence = 0f,
-                    method = "Error - Cloud Vision Failed",
-                    language = "Error",
-                    processingTime = System.currentTimeMillis() - startTime,
-                    wordCount = 0,
-                    hasArabic = false,
-                    hasLatin = false
-            )
-            }
-        }
-    }
+            """.trimIndent()
 
-    private suspend fun callCloudVisionAPI(base64Image: String): String {
-        return withContext(Dispatchers.IO) {
-            val json = JSONObject().apply {
-                put("requests", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("image", JSONObject().apply {
-                                                            put("content", base64Image)
-                        })
-                        put("features", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("type", "TEXT_DETECTION")
-                                                                        put("maxResults", 50)
-                            })
-                        })
-                        put("imageContext", JSONObject().apply {
-                            put("languageHints", JSONArray().apply {
-                                put("ar")
-                                                                        put("en")
-                            })
-                        })
-                    })
-                })
-            }
+            /* 5️⃣ call the REST endpoint */
+            val url =
+                "https://${BuildConfig.DOCAI_LOCATION}-documentai.googleapis.com/v1/projects/" +
+                        "${BuildConfig.DOCAI_PROJECT_ID}/locations/${BuildConfig.DOCAI_LOCATION}/" +
+                        "processors/${BuildConfig.DOCAI_PROCESSOR_ID}:process"
 
-            Log.d(TAG, "Making request to Cloud Vision API...")
-            val requestBody = json.toString().toRequestBody("application/json".toMediaType())
             val request = Request.Builder()
-                .url("https://vision.googleapis.com/v1/images:annotate?key=$cloudVisionApiKey")
-                            .post(requestBody)
-                            .build()
+                .url(url)
+                .post(jsonBody.toRequestBody(jsonMedia))
+                .addHeader("Authorization", "Bearer $accessToken")
+                .addHeader("Content-Type", "application/json")
+                .build()
 
-            val response = httpClient.newCall(request).execute()
-            Log.d(TAG, "Cloud Vision API response code: ${response.code}")
+            Log.d("OcrEngine", "Making request to: $url")
 
-            if (!response.isSuccessful) {
-                val errorBody = response.body?.string()
-                Log.e(TAG, "Cloud Vision API error: ${response.code} - $errorBody")
-                throw IOException("Cloud Vision API failed: ${response.code} - $errorBody")
+            client.newCall(request).execute().use { resp ->
+                Log.d("OcrEngine", "Response code: ${resp.code}")
+                if (!resp.isSuccessful) {
+                    val errorBody = resp.body?.string() ?: "No error details"
+                    Log.e("OcrEngine", "DocAI HTTP ${resp.code}: $errorBody")
+                    throw RuntimeException("DocAI HTTP ${resp.code}: $errorBody")
+                }
+
+                val body = resp.body?.string() ?: throw RuntimeException("Empty response")
+                val text = JsonParser.parseString(body)
+                    .asJsonObject["document"].asJsonObject["text"].asString
+
+                val result = OcrResult(
+                    text = text,
+                    hasArabic = LanguageDetector.containsArabic(text)
+                )
+
+                // Clean up optimized bitmap if it's different from original
+                if (optimizedBitmap != bitmap && !optimizedBitmap.isRecycled) {
+                    optimizedBitmap.recycle()
+                }
+
+                result
+            }
+        } catch (e: Exception) {
+            Log.e("OcrEngine", "OCR processing failed", e)
+            e.printStackTrace()
+            OcrResult("", false, e.localizedMessage)
+        }
+    }
+
+    private suspend fun getAccessToken(): String = withContext(Dispatchers.IO) {
+        try {
+            // Try to load service account credentials from assets
+            val credentialsStream: InputStream = try {
+                context.assets.open("service-account-key.json")
+            } catch (e: Exception) {
+                Log.e("OcrEngine", "Service account key not found in assets. Using default credentials.")
+                // Fall back to default credentials (works on GCE, Cloud Run, etc.)
+                throw RuntimeException("Service account key file not found. Please add service-account-key.json to assets folder.")
             }
 
-            response.body?.string() ?: throw IOException("Empty response from Cloud Vision API")
+            val credentials = GoogleCredentials.fromStream(credentialsStream)
+                .createScoped(listOf("https://www.googleapis.com/auth/cloud-platform"))
+
+            credentials.refreshIfExpired()
+            credentials.accessToken.tokenValue
+        } catch (e: Exception) {
+            Log.e("OcrEngine", "Failed to get access token", e)
+            throw RuntimeException("Authentication failed: ${e.message}")
         }
-    }
-
-    private fun containsArabic(text: String): Boolean {
-        return text.any { char ->
-            char.code in 0x0600..0x06FF ||
-            char.code in 0x0750..0x077F ||
-            char.code in 0x08A0..0x08FF ||
-            char.code in 0xFB50..0xFDFF ||
-            char.code in 0xFE70..0xFEFF
-        }
-    }
-
-    private fun containsLatin(text: String): Boolean {
-        return text.any { char ->
-            char.code in 0x0041..0x005A || char.code in 0x0061..0x007A
-        }
-    }
-
-    private fun detectLanguage(text: String): String {
-        return when {
-            containsArabic(text) && containsLatin(text) -> "Arabic & Latin"
-            containsArabic(text) -> "Arabic"
-            containsLatin(text) -> "Latin"
-            text.isBlank() -> "Unknown"
-            else -> "Other"
-        }
-    }
-
-    private fun enhanceImageForOcr(bitmap: Bitmap): Bitmap {
-        val enhanced = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(enhanced)
-        val paint = Paint()
-
-        val colorMatrix = ColorMatrix(floatArrayOf(
-            1.5f, 0f, 0f, 0f, 30f,
-            0f, 1.5f, 0f, 0f, 30f,
-            0f, 0f, 1.5f, 0f, 30f,
-            0f, 0f, 0f, 1f, 0f
-        ))
-
-        paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
-        canvas.drawBitmap(bitmap, 0f, 0f, paint)
-        return enhanced
-    }
-
-    private fun bitmapToBase64(bitmap: Bitmap): String {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-
-        val scaledBitmap = if (bitmap.width > 1024 || bitmap.height > 1024) {
-            val scale = min(1024f / bitmap.width, 1024f / bitmap.height)
-            Bitmap.createScaledBitmap(
-                bitmap,
-                (bitmap.width * scale).toInt(),
-                (bitmap.height * scale).toInt(),
-                true
-            )
-        } else {
-            bitmap
-        }
-
-        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream)
-        val byteArray = byteArrayOutputStream.toByteArray()
-        return Base64.encodeToString(byteArray, Base64.NO_WRAP)
-    }
-
-    private fun calculateConfidenceFromCloud(annotations: JSONArray): Float {
-        if (annotations.length() <= 1) return 0.85f
-
-        var totalConfidence = 0f
-        var count = 0
-
-        for (i in 1 until annotations.length()) {
-            val annotation = annotations.getJSONObject(i)
-            if (annotation.has("confidence")) {
-                totalConfidence += annotation.getDouble("confidence").toFloat()
-                count++
-            }
-        }
-
-        return if (count > 0) totalConfidence / count else 0.85f
     }
 }
